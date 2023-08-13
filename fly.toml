@@ -5,6 +5,7 @@
 
 app = "fal-bot"
 primary_region = "den"
+kill_timeout = 30
 
 [build]
 
@@ -12,4 +13,3 @@ primary_region = "den"
   auto_start_machines = true
   auto_stop_machines = false
   min_machines_running = 1
-  max_machines_running = 1
