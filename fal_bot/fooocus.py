@@ -1,5 +1,5 @@
 import time
-from functools import partial
+from dataclasses import dataclass
 
 import discord
 from discord import app_commands
@@ -117,7 +117,26 @@ AVAILABLE_STYLES = [
     "photo-tilt-shift",
 ]
 
-DEFAULT_STYLES = AVAILABLE_STYLES[:25]
+DEFAULT_STYLES = AVAILABLE_STYLES[:24]
+KEEP_STYLE = "keep"
+
+
+def style_selector() -> list[discord.SelectOption]:
+    options = [
+        discord.SelectOption(
+            label="Keep current style",
+            value=KEEP_STYLE,
+        )
+    ]
+    for style in DEFAULT_STYLES:
+        options.append(
+            discord.SelectOption(
+                label=" ".join(style.split("-")).title(),
+                value=style,
+            )
+        )
+
+    return options
 
 
 async def style_autocomplete(
@@ -126,29 +145,31 @@ async def style_autocomplete(
 ) -> list[app_commands.Choice[str]]:
     if not current:
         return [
-            app_commands.Choice(name=choice, value=choice) for choice in DEFAULT_STYLES
+            app_commands.Choice(
+                name=choice,
+                value=choice,
+            )
+            for choice in DEFAULT_STYLES
         ]
     else:
         return [
-            app_commands.Choice(name=choice, value=choice)
+            app_commands.Choice(
+                name=choice,
+                value=choice,
+            )
             for choice in AVAILABLE_STYLES
             if current.lower() in choice.lower()
         ]
 
 
+@dataclass
 class RegenerateView(discord.ui.View):
-    def __init__(
-        self,
-        interaction: discord.Interaction,
-        prompt: str,
-        style: str,
-        *args,
-        **kwargs,
-    ) -> None:
-        self.original_interaction = interaction
-        self.prompt = prompt
-        self.style = style
-        super().__init__(*args, **kwargs, timeout=60)
+    original_interaction: discord.Interaction
+    prompt: str
+    style: str
+
+    def __post_init__(self) -> None:
+        super().__init__()
 
     async def remove_view(self) -> None:
         await self.original_interaction.edit_original_response(view=None)
@@ -157,13 +178,24 @@ class RegenerateView(discord.ui.View):
         await self.remove_view()
         await super().on_timeout()
 
+    @discord.ui.select(
+        placeholder="Change style",
+        min_values=1,
+        max_values=1,
+        options=style_selector(),
+    )
     async def with_style(
         self,
-        select: discord.ui.Select,
         interaction: discord.Interaction,
+        select: discord.ui.Select,
     ):
         await self.remove_view()
-        await command.callback(interaction, prompt=self.prompt, style=select.values[0])
+
+        [style] = select.values
+        if style == KEEP_STYLE:
+            style = self.style
+
+        await command.callback(interaction, prompt=self.prompt, style=style)
 
 
 @app_commands.command(
@@ -227,34 +259,12 @@ async def command(
             icon_url=config.FALAI_LOGO_URL,
         )
 
-        view = RegenerateView(
-            interaction,
-            prompt=prompt,
-            style=style,
-        )
-
-        select = discord.ui.Select(
-            placeholder="Change style",
-            min_values=1,
-            max_values=1,
-        )
-        select.add_option(
-            label=f"{style} -- current",
-            value=style,
-        )
-        for example_style in DEFAULT_STYLES[:-1]:
-            if example_style == style:
-                continue
-
-            select.add_option(
-                label=example_style,
-                value=example_style,
-            )
-        select.callback = partial(view.with_style, select)
-        view.add_item(select)
-
         await interaction.edit_original_response(
             content=None,
             embed=embed,
-            view=view,
+            view=RegenerateView(
+                interaction,
+                prompt=prompt,
+                style=style,
+            ),
         )
