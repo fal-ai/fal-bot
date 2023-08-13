@@ -1,14 +1,13 @@
-import asyncio
 import time
 from functools import partial
 
 import discord
-import httpx
 from discord import app_commands
 
 from fal_bot import config, utils
+from fal_bot.queue_client import InProgress, Queued, queue_client
 
-API_BASE = "https://110602490-fooocus.gateway.alpha.fal.ai"
+FOOOCUS_BASE_URL = "https://110602490-fooocus.gateway.alpha.fal.ai"
 
 AVAILABLE_STYLES = [
     "sai-base",
@@ -178,69 +177,39 @@ async def command(
     style: str = "cinematic-default",
 ):
     await interaction.response.send_message("Your request has been received.")
-    async with httpx.AsyncClient(
-        base_url=API_BASE,
-        headers={"Authorization": f"Key {config.FAL_SECRET}"},
+    async with queue_client(
+        FOOOCUS_BASE_URL,
+        on_error=utils.on_error(interaction),
     ) as client:
-        response = await client.post(
-            "/fal/queue/submit/",
-            json={
+        request_handle = await client.submit(
+            data={
                 "prompt": prompt,
                 "style": style,
-            },
+            }
         )
-        if response.status_code != 200:
-            await interaction.edit_original_response(
-                content=f"Something went wrong.\n{utils.wrap_source_code(response.json())}"
-            )
-            return
 
         time_start = time.monotonic()
-        request_id = response.json()["request_id"]
+
         iteration_id = 0
-        while True:
+        async for status in client.poll_until_ready(request_handle):
+            match status:
+                case Queued(position):
+                    message = "Your request is in queue. "
+                    message += f"Position: {position + 1}"
+                    await interaction.edit_original_response(content=message)
+                case InProgress(logs):
+                    message = "Your request is in progress "
+                    message += "🏃‍♂️" if iteration_id % 2 == 0 else "🚶"
+                    message += "."
+                    if formatted_logs := utils.format_logs(logs):
+                        message += "\n" + utils.wrap_source_code(formatted_logs)
+
+                    await interaction.edit_original_response(content=message)
+
             iteration_id += 1
 
-            response = await client.get(f"/fal/queue/requests/{request_id}/status/")
-            if response.status_code == 200:
-                break
-            elif response.status_code == 404:
-                await interaction.edit_original_response(
-                    content=f"Something went wrong.\n{utils.wrap_source_code(response.json())}"
-                )
-                return
-
-            data = response.json()
-            if data["status"] == "IN_QUEUE":
-                queue_position = data["queue_position"]
-                await interaction.edit_original_response(
-                    content=f"Your request is in queue. Position: {queue_position + 1}"
-                )
-            elif data["status"] == "IN_PROGRESS":
-                last_10_logs = [
-                    f"{log['message']}"
-                    for log in data["logs"][-30:]
-                    if log["message"].strip()
-                    if "Refiner" not in log["message"]
-                ][-10:]
-                message = "Your request is in progress "
-                message += "🏃‍♂️" if iteration_id % 2 == 0 else "🚶"
-                message += "."
-                if last_10_logs:
-                    message += "\n" + utils.wrap_source_code("\n".join(last_10_logs))
-
-                await interaction.edit_original_response(content=message)
-
-            await asyncio.sleep(0.2)
-
-        result = await client.get(f"/fal/queue/requests/{request_id}/response/")
-        if result.status_code != 200:
-            await interaction.edit_original_response(
-                content=f"Something went wrong.\n{utils.wrap_source_code(result.json())}"
-            )
-            return
-
-        image_url = result.json()["images"][0]["url"]
+        result = await client.result(request_handle)
+        image_url = result["images"][0]["url"]
         embed = discord.Embed(
             title="Fooocus Image",
             description=f"For the full resolution image, click [here]({image_url}).",
@@ -255,7 +224,7 @@ async def command(
         embed.set_image(url=image_url)
         embed.set_footer(
             text="Powered by serverless.fal.ai",
-            icon_url="https://avatars.githubusercontent.com/u/74778219?s=200&v=4",
+            icon_url=config.FALAI_LOGO_URL,
         )
 
         view = RegenerateView(

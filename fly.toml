@@ -8,8 +8,3 @@ primary_region = "den"
 kill_timeout = 30
 
 [build]
-
-[[services]]
-  auto_start_machines = true
-  auto_stop_machines = false
-  min_machines_running = 1
