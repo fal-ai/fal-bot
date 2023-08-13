@@ -1,11 +1,12 @@
 import time
 from dataclasses import dataclass
+from typing import Any, Literal
 
 import discord
 from discord import app_commands
 
 from fal_bot import config, utils
-from fal_bot.consts import FOOOCUS_STYLES
+from fal_bot.consts import FOOOCUS_ASPECT_RATIOS, FOOOCUS_STYLES
 from fal_bot.queue_client import InProgress, Queued, queue_client
 
 FOOOCUS_BASE_URL = "https://110602490-fooocus.gateway.alpha.fal.ai"
@@ -32,34 +33,10 @@ def style_selector() -> list[discord.SelectOption]:
     return options
 
 
-async def style_autocomplete(
-    interaction: discord.Interaction,
-    current: str,
-) -> list[app_commands.Choice[str]]:
-    if not current:
-        return [
-            app_commands.Choice(
-                name=choice,
-                value=choice,
-            )
-            for choice in DEFAULT_STYLES
-        ]
-    else:
-        return [
-            app_commands.Choice(
-                name=choice,
-                value=choice,
-            )
-            for choice in FOOOCUS_STYLES
-            if current.lower() in choice.lower()
-        ]
-
-
 @dataclass
 class RegenerateView(discord.ui.View):
     original_interaction: discord.Interaction
-    prompt: str
-    style: str
+    options: dict[str, Any]
 
     def __post_init__(self) -> None:
         super().__init__()
@@ -88,18 +65,21 @@ class RegenerateView(discord.ui.View):
         if style == KEEP_STYLE:
             style = self.style
 
-        await command.callback(interaction, prompt=self.prompt, style=style)
+        await command.callback(interaction, **self.options)
 
 
 @app_commands.command(
     name="generate",
     description="Text to image generation with Fooocus.",
 )
-@app_commands.autocomplete(style=style_autocomplete)
+@app_commands.autocomplete(style=utils.autocomplete_from(FOOOCUS_STYLES))
+@app_commands.autocomplete(aspect_ratio=utils.autocomplete_from(FOOOCUS_ASPECT_RATIOS))
 async def command(
     interaction: discord.Interaction,
     prompt: str,
     style: str = "cinematic-default",
+    mode: Literal["Speed", "Quality"] = "Speed",
+    aspect_ratio: str = "1024x1024",
 ):
     await interaction.response.send_message("Your request has been received.")
     async with queue_client(
@@ -110,6 +90,8 @@ async def command(
             data={
                 "prompt": prompt,
                 "style": style,
+                "performance": mode,
+                "aspect_ratio": aspect_ratio.replace("x", "×"),
             }
         )
 
@@ -141,12 +123,13 @@ async def command(
             description=f"For the full resolution image, click [here]({image_url}).",
         )
         embed.add_field(name="Prompt", value=prompt, inline=False)
-        embed.add_field(name="Style", value=style, inline=True)
+        embed.add_field(name="Style", value=style)
         embed.add_field(
             name="Total time taken",
             value=f"{time.monotonic() - time_start:.2f}s",
-            inline=True,
         )
+        embed.add_field(name="Mode", value=mode)
+        embed.add_field(name="Aspect ratio", value=aspect_ratio)
         embed.set_image(url=image_url)
         embed.set_footer(
             text="Powered by serverless.fal.ai",
@@ -158,7 +141,11 @@ async def command(
             embed=embed,
             view=RegenerateView(
                 interaction,
-                prompt=prompt,
-                style=style,
+                options={
+                    "prompt": prompt,
+                    "style": style,
+                    "mode": mode,
+                    "aspect_ratio": aspect_ratio,
+                },
             ),
         )
