@@ -125,6 +125,7 @@ async def command(
                 case InProgress(logs):
                     message = "Your request is in progress "
                     message += "🏃‍♂️" if iteration_id % 2 == 0 else "🚶"
+                    message += f"(running for {time.monotonic() - time_start:.2f}s)"
                     message += "."
                     if formatted_logs := utils.format_logs(logs):
                         message += "\n" + utils.wrap_source_code(formatted_logs)
