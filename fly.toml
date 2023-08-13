@@ -1,0 +1,15 @@
+# fly.toml app configuration file generated for fal-bot on 2023-08-13T23:59:07+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "fal-bot"
+primary_region = "den"
+
+[build]
+
+[[services]]
+  auto_start_machines = true
+  auto_stop_machines = false
+  min_machines_running = 1
+  max_machines_running = 1
