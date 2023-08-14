@@ -29,6 +29,13 @@ class FalBot(discord.Client):
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
 
+    async def sync_commands(self, token: str) -> None:
+        await self.login(token)
+        try:
+            await self.tree.sync()
+        finally:
+            await self.close()
+
 
 client = FalBot()
 
