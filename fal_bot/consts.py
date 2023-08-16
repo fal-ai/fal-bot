@@ -1,3 +1,10 @@
+SD_MODELS = [
+    "runwayml/stable-diffusion-v1-5",
+    "stabilityai/stable-diffusion-2-1",
+    "SG161222/Realistic_Vision_V2.0",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+]
+
 FOOOCUS_STYLES = [
     "sai-base",
     "cinematic-default",

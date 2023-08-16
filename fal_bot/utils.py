@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import json
 import time
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 import discord
 from discord import app_commands
 from httpx import HTTPStatusError
 
+from fal_bot import config
 from fal_bot.queue_client import (
     InProgress,
     Queued,
@@ -24,7 +28,10 @@ def on_error(
     interaction: discord.Interaction,
 ) -> Callable[[HTTPStatusError], Awaitable[None]]:
     async def callback(exception: HTTPStatusError):
-        data = exception.response.json()
+        try:
+            data = exception.response.json()
+        except json.JSONDecodeError:
+            data = {"error": exception.response.text}
 
         message = "Something went wrong during your request.\n"
         message += wrap_source_code(json.dumps(data, indent=4))
@@ -107,3 +114,39 @@ async def submit_interactive_task(
 
         result = await client.result(request_handle)
         return result
+
+
+def make_prompted_image_embed(
+    title: str,
+    image_url: str,
+    prompt: str,
+    fields: dict[str, Any],
+):
+    embed = discord.Embed(
+        title=title,
+        description=f"For the full resolution image, click [here]({image_url}).",
+    )
+    embed.add_field(name="Prompt", value=prompt, inline=False)
+
+    for parameter, value in fields.items():
+        embed.add_field(name=parameter, value=value)
+
+    embed.set_image(url=image_url)
+    embed.set_footer(
+        text="Powered by serverless.fal.ai",
+        icon_url=config.FALAI_LOGO_URL,
+    )
+    return embed
+
+
+@dataclass
+class Timed:
+    elapsed: float | None = field(init=False, default=None)
+    _start_time: float | None = field(init=False, default=None, repr=False)
+
+    def __enter__(self) -> Timed:
+        self._start_time = time.monotonic()
+        return self
+
+    def __exit__(self, *args):
+        self.elapsed = time.monotonic() - self._start_time
