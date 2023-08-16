@@ -1,9 +1,16 @@
 import json
+import time
 from typing import Any, Awaitable, Callable
 
 import discord
 from discord import app_commands
 from httpx import HTTPStatusError
+
+from fal_bot.queue_client import (
+    InProgress,
+    Queued,
+    queue_client,
+)
 
 
 def wrap_source_code(source: str) -> str:
@@ -64,3 +71,39 @@ def autocomplete_from(
             ]
 
     return autocomplete
+
+
+async def submit_interactive_task(
+    interaction: discord.Interaction,
+    url: str,
+    /,
+    **data,
+) -> dict[str, Any]:
+    async with queue_client(
+        url,
+        on_error=on_error(interaction),
+    ) as client:
+        request_handle = await client.submit(data)
+        time_start = time.monotonic()
+
+        iteration_id = 0
+        async for status in client.poll_until_ready(request_handle):
+            match status:
+                case Queued(position):
+                    message = "Your request is in queue. "
+                    message += f"Position: {position + 1}"
+                    await interaction.edit_original_response(content=message)
+                case InProgress(logs):
+                    message = "Your request is in progress "
+                    message += "🏃‍♂️" if iteration_id % 2 == 0 else "🚶"
+                    message += f"(running for {time.monotonic() - time_start:.2f}s)"
+                    message += "."
+                    if formatted_logs := format_logs(logs):
+                        message += "\n" + wrap_source_code(formatted_logs)
+
+                    await interaction.edit_original_response(content=message)
+
+            iteration_id += 1
+
+        result = await client.result(request_handle)
+        return result
