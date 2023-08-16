@@ -67,7 +67,7 @@ class RegenerateView(discord.ui.View):
 
 
 @app_commands.command(
-    name="generate",
+    name="fooocus",
     description="Generate an image from the given prompt with the Fooocus model.",
 )
 @app_commands.autocomplete(style=utils.autocomplete_from(FOOOCUS_STYLES))
