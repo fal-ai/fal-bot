@@ -18,7 +18,7 @@ async def command(
     interaction: discord.Interaction,
     prompt: str,
     negative_prompt: str = "",
-    guidance_scale: float = 0.0,
+    guidance_scale: float = 7.5,
     model_name: str = "stabilityai/stable-diffusion-xl-base-1.0",
     mode: Literal["Speed", "Quality"] = "Speed",
     scheduler: Literal[tuple(SD_SCHEDULERS)] = "DPM++ 2M Karras",  # type: ignore
