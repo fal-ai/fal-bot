@@ -5,6 +5,15 @@ SD_MODELS = [
     "stabilityai/stable-diffusion-xl-base-1.0",
 ]
 
+SD_SCHEDULERS = [
+    "DPM++ 2M",
+    "DPM++ 2M Karras",
+    "DPM++ 2M SDE",
+    "DPM++ 2M SDE Karras",
+    "Euler",
+    "Euler A",
+]
+
 FOOOCUS_STYLES = [
     "sai-base",
     "cinematic-default",
