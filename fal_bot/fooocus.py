@@ -59,9 +59,11 @@ class RegenerateView(discord.ui.View):
     ):
         await self.remove_view()
 
+        options = self.options
+
         [style] = select.values
-        if style == KEEP_STYLE:
-            style = self.style
+        if style != KEEP_STYLE:
+            options["style"] = style
 
         await command.callback(interaction, **self.options)
 
