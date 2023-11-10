@@ -48,7 +48,9 @@ class QueueClient:
         return RequestHandle(data["request_id"])
 
     async def status(self, request: RequestHandle) -> _Status:
-        response = await self.session.get(f"/requests/{request.request_id}/status/")
+        response = await self.session.get(
+            f"/requests/{request.request_id}/status?logs=1"
+        )
         response.raise_for_status()
 
         if response.status_code == 200:
