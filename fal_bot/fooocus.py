@@ -100,7 +100,7 @@ async def command(
         image_url=result["images"][0]["url"],
         prompt=prompt,
         fields={
-            "Styles": [style],
+            "Style": style,
             "Mode": mode,
             "Aspect Ratio": aspect_ratio,
             "Time Taken": f"{timer.elapsed:.2f}s",
