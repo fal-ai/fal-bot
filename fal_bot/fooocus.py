@@ -77,8 +77,8 @@ class RegenerateView(discord.ui.View):
 async def command(
     interaction: discord.Interaction,
     prompt: str,
-    style: str = "cinematic-default",
-    mode: Literal["Speed", "Quality"] = "Speed",
+    style: str = "Fooocus Cinematic",
+    mode: Literal["Extreme Speed", "Speed", "Quality"] = "Speed",
     aspect_ratio: str = "1024x1024",
 ):
     await interaction.response.send_message("Your request has been received.")
@@ -87,9 +87,9 @@ async def command(
             interaction,
             FOOOCUS_BASE_URL,
             prompt=prompt,
-            style=style,
+            styles=[style],
             performance=mode,
-            aspect_ratio=aspect_ratio.replace("x", "×"),
+            aspect_ratio=aspect_ratio,
         )
 
     if result is None:
@@ -100,7 +100,7 @@ async def command(
         image_url=result["images"][0]["url"],
         prompt=prompt,
         fields={
-            "Style": style,
+            "Styles": [style],
             "Mode": mode,
             "Aspect Ratio": aspect_ratio,
             "Time Taken": f"{timer.elapsed:.2f}s",
@@ -115,7 +115,7 @@ async def command(
             interaction,
             options={
                 "prompt": prompt,
-                "style": style,
+                "styles": [style],
                 "mode": mode,
                 "aspect_ratio": aspect_ratio,
             },
