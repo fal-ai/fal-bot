@@ -115,7 +115,7 @@ async def command(
             interaction,
             options={
                 "prompt": prompt,
-                "styles": [style],
+                "style": style,
                 "mode": mode,
                 "aspect_ratio": aspect_ratio,
             },
